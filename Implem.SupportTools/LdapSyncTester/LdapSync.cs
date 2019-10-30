@@ -57,7 +57,10 @@ namespace Implem.SupportTools.LdapSyncTester
     public class Ldap
     {
         public string LdapSearchRoot;
+        public string LdapLoginPattern;
         public string LdapSearchProperty;
+        public string LdapSearchPattern;
+        public string LdapAuthenticationType;
         public string NetBiosDomainName;
         public int LdapTenantId;
         public string LdapDeptCode;
@@ -73,6 +76,7 @@ namespace Implem.SupportTools.LdapSyncTester
         public string LdapMailAddress;
         public string LdapMailAddressPattern;
         public List<LdapExtendedAttribute> LdapExtendedAttributes;
+        public int LdapSyncPageSize;
         public List<string> LdapSyncPatterns;
         public bool LdapExcludeAccountDisabled;
         public bool AutoDisable;
@@ -116,7 +120,14 @@ namespace Implem.SupportTools.LdapSyncTester
                 ldap.LdapSyncPassword,
                 ldap);
             directorySearcher.Filter = pattern;
-            directorySearcher.PageSize = 1000;
+            if (ldap.LdapSyncPageSize == 0)
+            {
+                directorySearcher.PageSize = 1000;
+            }
+            else if(ldap.LdapSyncPageSize > 0)
+            {
+                directorySearcher.PageSize = ldap.LdapSyncPageSize;
+            }
             var results = directorySearcher.FindAll();
             foreach (SearchResult result in results)
             {
@@ -142,7 +153,11 @@ namespace Implem.SupportTools.LdapSyncTester
         private static DirectorySearcher DirectorySearcher(
             string loginId, string password, Ldap ldap)
         {
-            AuthenticationTypes type = AuthenticationTypes.Secure;
+            if (!Enum.TryParse<AuthenticationTypes>(ldap.LdapAuthenticationType, out AuthenticationTypes type)
+                || !Enum.IsDefined(typeof(AuthenticationTypes), type))
+            {
+                type = AuthenticationTypes.Secure;
+            }
             if (loginId == null || password == null)
             {
                 type = AuthenticationTypes.Anonymous;

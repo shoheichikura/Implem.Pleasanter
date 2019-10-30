@@ -20,7 +20,8 @@ namespace Implem.Pleasanter.Libraries.DataSources
             {
                 try
                 {
-                    searcher = DirectorySearcher(loginId, password, ldap);
+                    searcher = DirectorySearcher(ldap.LdapLoginPattern != null ?
+                        ldap.LdapLoginPattern.Replace("{loginId}", loginId) : loginId, password, ldap);
                 }
                 catch (Exception e)
                 {
@@ -28,7 +29,8 @@ namespace Implem.Pleasanter.Libraries.DataSources
                     return false;
                 }
                 SearchResult result = null;
-                searcher.Filter = $"({ldap.LdapSearchProperty}={loginId})";
+                searcher.Filter = ldap.LdapSearchPattern != null ? 
+                    ldap.LdapSearchPattern.Replace("{loginId}", loginId) : $"({ldap.LdapSearchProperty}={loginId})";
                 try
                 {
                     result = searcher.FindOne();
@@ -58,8 +60,8 @@ namespace Implem.Pleasanter.Libraries.DataSources
             {
                 var root = new DirectoryEntry(ldap.LdapSearchRoot);
                 var searcher = new DirectorySearcher(root);
-                searcher.Filter = "({0}={1})".Params(
-                    ldap.LdapSearchProperty, loginId.Split_2nd('\\'));
+                searcher.Filter = ldap.LdapSearchPattern != null ?
+                    ldap.LdapSearchPattern.Replace("{loginId}", loginId) : $"({ldap.LdapSearchProperty}={loginId.Split_2nd('\\')})";
                 try
                 {
                     SearchResult result = searcher.FindOne();
@@ -230,7 +232,14 @@ namespace Implem.Pleasanter.Libraries.DataSources
                     ldap.LdapSyncPassword,
                     ldap);
                 directorySearcher.Filter = pattern;
-                directorySearcher.PageSize = 1000;
+                if (ldap.LdapSyncPageSize == 0)
+                {
+                    directorySearcher.PageSize = 1000;
+                }
+                else if (ldap.LdapSyncPageSize > 0)
+                {
+                    directorySearcher.PageSize = ldap.LdapSyncPageSize;
+                }
                 var results = directorySearcher.FindAll();
                 logs.Add("results", results.Count.ToString());
                 foreach (SearchResult result in results)
@@ -281,7 +290,11 @@ namespace Implem.Pleasanter.Libraries.DataSources
         private static DirectorySearcher DirectorySearcher(
             string loginId, string password, ParameterAccessor.Parts.Ldap ldap)
         {
-            AuthenticationTypes type = AuthenticationTypes.Secure;
+            if (!Enum.TryParse<AuthenticationTypes>(ldap.LdapAuthenticationType, out AuthenticationTypes type)
+                || !Enum.IsDefined(typeof(AuthenticationTypes), type))
+            {
+                type = AuthenticationTypes.Secure;
+            }
             if (loginId == null || password == null)
             {
                 type = AuthenticationTypes.Anonymous;
